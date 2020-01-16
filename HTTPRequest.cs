@@ -18,6 +18,8 @@ namespace DNWS
 
         protected String _method;
 
+		protected String _pure_request;
+
         public String Url
         {
             get { return _url; }
@@ -42,8 +44,17 @@ namespace DNWS
         {
             get { return _method; }
         }
+
+		public String whole_request
+		{
+			get { return _pure_request; }
+		}
+
+
         public HTTPRequest(String request)
         {
+			_pure_request = request;
+
             _propertyListDictionary = new Dictionary<String, String>();
             String[] lines = Regex.Split(request, "\\n");
 
@@ -73,6 +84,8 @@ namespace DNWS
                 return;
             }
             _status = 200;
+
+			
 
             _url = statusLine[1];
             String[] urls = Regex.Split(_url, "/");
@@ -119,6 +132,8 @@ namespace DNWS
                 return null;
             }
         }
+
+		
         public String getRequestByKey(String key)
         {
             if (_requestListDictionary.ContainsKey(key.ToLower()))
