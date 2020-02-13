@@ -81,6 +81,9 @@ namespace DNWS
 		}
 		// Get config from config manager, e.g., document root and port
 		protected string ROOT = Program.Configuration["DocumentRoot"];
+
+		protected string SITE_ROOT = Program.Configuration["DocumentRoot"] + "/www";
+
 		protected Socket _client;
 		protected Program _parent;
 		protected Dictionary<string, PluginInfo> plugins;
@@ -140,7 +143,7 @@ namespace DNWS
 			catch (FileNotFoundException ex)
 			{
 				response = new HTTPResponse(404);
-				response.body = Encoding.UTF8.GetBytes("<h1>404 Not found</h1>" + ex.Message);
+				response.body = Encoding.UTF8.GetBytes("<h1>404 Not found</h1>");// + ex.Message
 			}
 			catch (Exception ex)
 			{
@@ -150,6 +153,16 @@ namespace DNWS
 			return response;
 
 		}
+
+		// protected HTTPResponse error403() //later
+		// {
+		// 	HTTPResponse response = null;
+		// 	response = new HTTPResponse(403);
+		// 	String error_config = SITE_ROOT + "/error_conf.conf";
+		// 	String path = System.IO.File.ReadAllText(error_config);
+		// 	response.body = System.IO.File.ReadAllBytes(path);
+		// 	return response;
+		// }
 
 		/// <summary>
 		/// Get a request from client, process it, then return response to client
@@ -196,13 +209,49 @@ namespace DNWS
 				// local file
 				if(!processed) 
 				{
-					if (request.Filename.Equals(""))
+					if (request.Filename.Equals("") || request.Filename.Equals("/"))
 					{
-						response = getFile(ROOT + "/index.html");
+						response = getFile(SITE_ROOT + "/index.html");
 					}
 					else
 					{
-						response = getFile(ROOT + "/" + request.Filename);
+						Boolean is_protected = false;
+
+						if(File.Exists(SITE_ROOT + "/ignore_files.conf"))
+						{
+							//Console.WriteLine(SITE_ROOT + "/ignore_files.conf" + " Exist");
+							String data_in_blocked_file = System.IO.File.ReadAllText(SITE_ROOT + "/ignore_files.conf");
+							String[] protected_files = data_in_blocked_file.Split(
+												new[] { "\r\n", "\r", "\n" },
+    											StringSplitOptions.None
+												);
+							if(File.Exists(SITE_ROOT + "/" + request.Filename))
+							{
+								foreach(String file in protected_files)
+								{
+									//Console.WriteLine((file).ToLower() + " vs " + (request.Filename).ToLower());
+									if((file).ToLower().Equals((request.Filename).ToLower()))
+									{
+										//Console.WriteLine("BLOCKED");
+										is_protected = true;
+										break;
+									}
+								}
+							}
+						}
+						
+						//Console.WriteLine("requesting: " + request.Filename);
+						if(is_protected)
+						{
+							response = getFile(SITE_ROOT + "/index.html");
+							//response = error403();
+							//I'll replace with something like a 403 later
+						}
+						else
+						{
+							response = getFile(SITE_ROOT + "/" + request.Filename);
+						}
+						
 					}
 				}
 				// post processing pipe

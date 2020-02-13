@@ -89,8 +89,8 @@ namespace DNWS
 
             _url = statusLine[1];
             String[] urls = Regex.Split(_url, "/");
-            _filename = urls[urls.Length - 1];
-            String[] parts = Regex.Split(_filename, "[?]");
+            _filename = _url;
+            String[] parts = Regex.Split(urls[urls.Length - 1], "[?]");
             if (parts.Length > 1 && parts[1].Contains('&'))
             {
                 //Ref: http://stackoverflow.com/a/4982122
