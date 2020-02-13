@@ -116,6 +116,8 @@ namespace DNWS
 		protected HTTPResponse getFile(String path)
 		{
 			HTTPResponse response = null;
+			
+			//Console.WriteLine("Client Requesting -> " + path);
 
 			// Guess the content type from file extension
 			string fileType = "text/html";
@@ -288,22 +290,50 @@ namespace DNWS
 			serverSocket.Bind(localEndPoint);
 			serverSocket.Listen(5);
 			_parent.Log("Server started at port " + _port + ".");
+			
+			Boolean uses_thread_pool = Program.Configuration["uses_thread_pool"].ToLower().Equals("true");
+
+			if(uses_thread_pool)
+			{
+				_parent.Log("Using thread pool");
+			}
+			
+
 			while (true)
 			{
 				try
 				{
+				
 					// Wait for client
 					clientSocket = serverSocket.Accept();
 					// Get one, show some info
 					_parent.Log("Client accepted:" + clientSocket.RemoteEndPoint.ToString());
 					HTTPProcessor hp = new HTTPProcessor(clientSocket, _parent);
-					hp.Process();
+					if(uses_thread_pool)
+					{
+						ThreadPool.QueueUserWorkItem(new WaitCallback(aFunction),processHP(hp));
+					}
+					else
+					{
+						hp.Process();
+					}
 				}
 				catch (Exception ex)
 				{
 					_parent.Log("Server starting error: " + ex.Message + "\n" + ex.StackTrace);
 				}
 			}
+		}
+
+		static void aFunction(Object callback)
+		{
+
+		}
+
+		public Boolean processHP(HTTPProcessor hp)
+		{
+			hp.Process();
+			return true;
 		}
 	}
 }
