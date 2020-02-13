@@ -80,9 +80,9 @@ namespace DNWS
 			}
 		}
 		// Get config from config manager, e.g., document root and port
-		protected string ROOT = Program.Configuration["DocumentRoot"];
+		protected string ROOT = Program.Configuration["ProgramRoot"];
 
-		protected string SITE_ROOT = Program.Configuration["DocumentRoot"] + "/www";
+		protected string SITE_ROOT = Program.Configuration["DocumentRoot"]; //This is the document root
 
 		protected Socket _client;
 		protected Program _parent;
@@ -144,6 +144,32 @@ namespace DNWS
 			{
 				response = new HTTPResponse(404);
 				response.body = Encoding.UTF8.GetBytes("<h1>404 Not found</h1>");// + ex.Message
+			}
+			catch (DirectoryNotFoundException ex)
+			{
+				response = new HTTPResponse(404);
+				response.body = Encoding.UTF8.GetBytes("<h1>404 Not found</h1>");// + ex.Message
+			}
+			catch (Exception ex)
+			{
+				response = new HTTPResponse(500);
+				response.body = Encoding.UTF8.GetBytes("<h1>500 Internal Server Error</h1>" + ex.Message);
+			}
+			return response;
+
+		}
+
+		protected HTTPResponse response_from_html(String HTML_String)
+		{
+			HTTPResponse response = null;
+
+			string fileType = "text/html";
+			
+			try
+			{
+				response = new HTTPResponse(200);
+				response.type = fileType;
+				response.body = Encoding.ASCII.GetBytes(HTML_String);
 			}
 			catch (Exception ex)
 			{
@@ -215,43 +241,80 @@ namespace DNWS
 					}
 					else
 					{
-						Boolean is_protected = false;
+						if(Directory.Exists(SITE_ROOT + "/" + request.Filename))
+						{
+							Boolean enable_dir_list = Program.Configuration["enable_directory_listing"].ToLower().Equals("true");
 
-						if(File.Exists(SITE_ROOT + "/ignore_files.conf"))
-						{
-							//Console.WriteLine(SITE_ROOT + "/ignore_files.conf" + " Exist");
-							String data_in_blocked_file = System.IO.File.ReadAllText(SITE_ROOT + "/ignore_files.conf");
-							String[] protected_files = data_in_blocked_file.Split(
-												new[] { "\r\n", "\r", "\n" },
-    											StringSplitOptions.None
-												);
-							if(File.Exists(SITE_ROOT + "/" + request.Filename))
+							if(File.Exists(SITE_ROOT + "/" + request.Filename + "/index.html") || !enable_dir_list)
 							{
-								foreach(String file in protected_files)
-								{
-									//Console.WriteLine((file).ToLower() + " vs " + (request.Filename).ToLower());
-									if((file).ToLower().Equals((request.Filename).ToLower()))
-									{
-										//Console.WriteLine("BLOCKED");
-										is_protected = true;
-										break;
-									}
-								}
+								response = getFile(SITE_ROOT + "/" + request.Filename + "/index.html");
 							}
-						}
-						
-						//Console.WriteLine("requesting: " + request.Filename);
-						if(is_protected)
-						{
-							response = getFile(SITE_ROOT + "/index.html");
-							//response = error403();
-							//I'll replace with something like a 403 later
+							else
+							{
+
+								string[] allfiles = Directory.GetFiles(SITE_ROOT + "/" + request.Filename, "*", SearchOption.AllDirectories);
+								String temp_html = "<html><head><title>DIR</title>" + "<style>table{font-family: arial, sans-serif;border-collapse: collapse; width: 100%;}td, th {border: 1px solid #dddddd;text-align: left;padding: 8px;}tr:nth-child(even) {background-color: #dddddd;}</style>";
+								temp_html += "</head><body>";
+
+								temp_html += "<table>";
+								temp_html += "	<tr>";
+								temp_html += "		<th>Name</th>";
+								temp_html += "		<th>Length</th>";
+								temp_html += "		<th>LastWriteTime</th>";
+								temp_html += "	</tr>";
+								foreach (var file in allfiles)
+								{
+									FileInfo info = new FileInfo(file);
+									temp_html += "	<tr>";
+									temp_html += "		<th><a href=\"" + info.Name + "\">" + info.Name + "</a></th>";//info.FullName
+									temp_html += "		<th>" + info.Length + "</th>";
+									temp_html += "		<th>" + info.LastWriteTime + "</th>";
+									temp_html += "	</tr>";
+								}
+								temp_html += "<table>";
+								temp_html += "</body></html>";
+								response = response_from_html(temp_html);
+							}
 						}
 						else
 						{
-							response = getFile(SITE_ROOT + "/" + request.Filename);
+							Boolean is_protected = false;
+
+							if(File.Exists(SITE_ROOT + "/ignore_files.conf"))
+							{
+								//Console.WriteLine(SITE_ROOT + "/ignore_files.conf" + " Exist");
+								String data_in_blocked_file = System.IO.File.ReadAllText(SITE_ROOT + "/ignore_files.conf");
+								String[] protected_files = data_in_blocked_file.Split(
+													new[] { "\r\n", "\r", "\n" },
+													StringSplitOptions.None
+													);
+								if(File.Exists(SITE_ROOT + "/" + request.Filename))
+								{
+									foreach(String file in protected_files)
+									{
+										//Console.WriteLine((file).ToLower() + " vs " + (request.Filename).ToLower());
+										if((file).ToLower().Equals((request.Filename).ToLower()))
+										{
+											//Console.WriteLine("BLOCKED");
+											is_protected = true;
+											break;
+										}
+									}
+								}
+							}
+							
+							//Console.WriteLine("requesting: " + request.Filename);
+							if(is_protected)
+							{
+								response = getFile(SITE_ROOT + "/index.html");
+								//response = error403();
+								//I'll replace with something like a 403 later
+							}
+							else
+							{
+								response = getFile(SITE_ROOT + "/" + request.Filename);
+							}
 						}
-						
 					}
 				}
 				// post processing pipe

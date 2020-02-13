@@ -1,7 +1,9 @@
 ﻿{
-    "DocumentRoot": ".",
+    "ProgramRoot": ".",
+    "DocumentRoot": "./www",
     "Port": "8080",
     "uses_thread_pool": "true",
+    "enable_directory_listing": "true",
     "Plugins" : [
         {
             "Path" : "stat",
